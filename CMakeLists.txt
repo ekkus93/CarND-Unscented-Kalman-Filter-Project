@@ -9,6 +9,8 @@ set(CMAKE_CXX_FLAGS, "${CXX_FLAGS}")
 
 set(sources src/ukf.cpp src/main.cpp src/tools.cpp)
 
+# gtest 
+set(test_sources test/gtest_main.cpp src/ukf.cpp src/tools.cpp)
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin") 
 
@@ -23,4 +25,11 @@ endif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 
 add_executable(UnscentedKF ${sources})
 
+# gtest 
+add_executable(Test_UnscentedKF ${test_sources})
+set_target_properties(Test_UnscentedKF PROPERTIES LINKER_LANGUAGE CXX)
+
 target_link_libraries(UnscentedKF z ssl uv uWS)
+
+# gtest 
+target_link_libraries(Test_UnscentedKF gtest gmock z ssl uv uWS)
