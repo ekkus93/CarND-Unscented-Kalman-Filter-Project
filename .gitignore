@@ -3,3 +3,8 @@
 
 # build files
 build/
+
+# editor config
+.vscode/
+
+*.code-workspace
