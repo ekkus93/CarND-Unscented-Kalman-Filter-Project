@@ -38,3 +38,19 @@ VectorXd Tools::CalculateRMSE(const vector<VectorXd> &estimations,
   //return the result
   return rmse; 
 }
+
+float Tools::ConstrainAngle(float angle)
+{
+    while (angle > M_PI) 
+    {
+        angle -= 2.0*M_PI;    
+    }
+    
+    while (angle < -M_PI)
+    {
+        angle += 2.0*M_PI;
+    }
+    
+    assert(angle >= -M_PI && angle <= M_PI);
+    return angle;
+}

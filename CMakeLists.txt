@@ -7,10 +7,10 @@ add_definitions(-std=c++11)
 set(CXX_FLAGS "-Wall")
 set(CMAKE_CXX_FLAGS, "${CXX_FLAGS}")
 
-set(sources src/ukf.cpp src/main.cpp src/tools.cpp)
+set(sources src/ukf.cpp src/main.cpp src/tools.cpp src/sensor_data.cpp src/sensor_data.h)
 
 # gtest 
-set(test_sources test/gtest_main.cpp src/ukf.cpp src/tools.cpp)
+set(test_sources test/gtest_main.cpp src/ukf.cpp src/tools.cpp src/sensor_data.cpp src/sensor_data.h)
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin") 
 
