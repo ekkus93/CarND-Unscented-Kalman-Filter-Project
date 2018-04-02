@@ -13,8 +13,6 @@ using Eigen::VectorXd;
 
 class UKF {
 public:
-  Tools tools_;
-
   ///* initially set to false, set to true in first call of ProcessMeasurement
   bool is_initialized_;
 
@@ -34,7 +32,7 @@ public:
   MatrixXd Xsig_pred_;
 
   ///* time when the state is true, in us
-  long long time_us_;
+  long long previous_timestamp_;
 
   ///* Process noise standard deviation longitudinal acceleration in m/s^2
   double std_a_;
@@ -66,16 +64,8 @@ public:
   ///* Augmented state dimension
   int n_aug_;
 
-  VectorXd x_aug_;
-  MatrixXd P_aug_;
-  MatrixXd Xsig_aug_;
-  MatrixXd Zsig_;
-  int n_z_;
-
   ///* Sigma point spreading parameter
   double lambda_;
-
-  long long previous_timestamp_;
 
   /**
    * Constructor
@@ -98,6 +88,18 @@ public:
    */
   void ProcessMeasurement(MeasurementPackage measurement_pack);
 
+  void CreateXSig(MatrixXd &Xsig, MatrixXd &P, int n_aug, 
+                  VectorXd &x, float std_a, 
+                  float std_yawdd, int lambda);
+  void PredictXSig(MatrixXd &Xsig, int n_aug, 
+                    double delta_t);
+  void PredictMeanAndCovariance(MatrixXd &Xsig, 
+                                int n_aug, 
+                                int lambda, 
+                                VectorXd &weights,
+                                VectorXd &x, 
+                                MatrixXd &P);
+
   /**
    * Prediction Predicts sigma points, the state, and the state covariance
    * matrix
@@ -111,11 +113,20 @@ public:
    */
   void UpdateLidar(MeasurementPackage meas_package);
 
+  void MakeZsig(const MatrixXd &Xsig, 
+                MatrixXd &Zsig);
+
   /**
    * Updates the state and the state covariance matrix using a radar measurement
    * @param meas_package The measurement at k+1
    */
   void UpdateRadar(MeasurementPackage meas_package);
+
+  void DisplayData();
+
+  // for unit tests
+  bool GetIsInitialized();
+  long long GetPreviousTimestamp();
 };
 
 #endif /* UKF_H */

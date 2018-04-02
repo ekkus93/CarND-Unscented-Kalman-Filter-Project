@@ -10,12 +10,13 @@ set(CMAKE_CXX_FLAGS, "${CXX_FLAGS}")
 set(sources src/ukf.cpp src/main.cpp src/tools.cpp src/sensor_data.cpp src/sensor_data.h)
 
 # gtest 
-set(test_sources test/gtest_main.cpp src/ukf.cpp src/tools.cpp src/sensor_data.cpp src/sensor_data.h)
+set(test_sources test/gtest_main.cpp src/ukf.cpp src/ukf.h src/tools.cpp src/sensor_data.cpp src/sensor_data.h test/ukf_test.cpp test/util.cpp test/util.h)
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin") 
 
 include_directories(/usr/local/include)
 include_directories(/usr/local/opt/openssl/include)
+include_directories(src)
 link_directories(/usr/local/lib)
 link_directories(/usr/local/opt/openssl/lib)
 link_directories(/usr/local/Cellar/libuv/1.19.2/lib)
