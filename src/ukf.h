@@ -6,12 +6,14 @@
 #include <vector>
 #include <string>
 #include <fstream>
+#include "tools.h"
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
 
 class UKF {
 public:
+  Tools tools_;
 
   ///* initially set to false, set to true in first call of ProcessMeasurement
   bool is_initialized_;
@@ -64,9 +66,16 @@ public:
   ///* Augmented state dimension
   int n_aug_;
 
+  VectorXd x_aug_;
+  MatrixXd P_aug_;
+  MatrixXd Xsig_aug_;
+  MatrixXd Zsig_;
+  int n_z_;
+
   ///* Sigma point spreading parameter
   double lambda_;
 
+  long long previous_timestamp_;
 
   /**
    * Constructor
@@ -78,11 +87,16 @@ public:
    */
   virtual ~UKF();
 
+  void Init(const MeasurementPackage &measurement_pack);
+  void InitLidar(const MeasurementPackage &measurement_pack);
+  void InitRadar(const MeasurementPackage &measurement_pack);
+  float CalcDt(long long t0, long long t1);
+
   /**
    * ProcessMeasurement
    * @param meas_package The latest measurement data of either radar or laser
    */
-  void ProcessMeasurement(MeasurementPackage meas_package);
+  void ProcessMeasurement(MeasurementPackage measurement_pack);
 
   /**
    * Prediction Predicts sigma points, the state, and the state covariance
