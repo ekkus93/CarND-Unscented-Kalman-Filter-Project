@@ -181,7 +181,7 @@ void UKF::ProcessMeasurement(MeasurementPackage measurement_pack) {
   previous_timestamp_ = measurement_pack.timestamp_;
 }
 
-void UKF::CreateXSig(MatrixXd &Xsig, MatrixXd &P,
+void UKF::MakeXSigAug(MatrixXd &Xsig_aug, const MatrixXd &P,
                       int n_aug, VectorXd &x,
                       float std_a, float std_yawdd, int lambda)
 {
@@ -203,15 +203,15 @@ void UKF::CreateXSig(MatrixXd &Xsig, MatrixXd &P,
   MatrixXd L = P_aug.llt().matrixL();
 
   //create augmented sigma points
-  Xsig.col(0) = x_aug;
+  Xsig_aug.col(0) = x_aug;
   for(int i =0; i<n_aug; i++)
   {
-    Xsig.col(i+1) = x_aug + sqrt(lambda+n_aug) * L.col(i);
-    Xsig.col(i+1+n_aug) = x_aug - sqrt(lambda+n_aug) * L.col(i);
+    Xsig_aug.col(i+1) = x_aug + sqrt(lambda+n_aug) * L.col(i);
+    Xsig_aug.col(i+1+n_aug) = x_aug - sqrt(lambda+n_aug) * L.col(i);
   }  
 }
 
-void UKF::PredictXSig(MatrixXd &Xsig, int n_aug, double delta_t)
+void UKF::MakeXSigPred(const MatrixXd &Xsig_aug, MatrixXd &Xsig_pred, int n_aug, double delta_t)
 {
   // Predict Sigma Points
   // Lesson 7, section 21: Sigma Point Prediction Assignment 2
@@ -219,13 +219,13 @@ void UKF::PredictXSig(MatrixXd &Xsig, int n_aug, double delta_t)
   for(int i=0; i<2*n_aug+1; i++)
   {
     // extract values for better readability
-    double p_x = Xsig(0, i);
-    double p_y = Xsig(1, i);
-    double v = Xsig(2, i);
-    double yaw = Xsig(3, i);
-    double yawd = Xsig(4, i);
-    double nu_a = Xsig(5, i);
-    double nu_yawdd = Xsig(6, i);
+    double p_x = Xsig_aug(0, i);
+    double p_y = Xsig_aug(1, i);
+    double v = Xsig_aug(2, i);
+    double yaw = Xsig_aug(3, i);
+    double yawd = Xsig_aug(4, i);
+    double nu_a = Xsig_aug(5, i);
+    double nu_yawdd = Xsig_aug(6, i);
 
     // predicted state values
     double px_p, py_p;
@@ -255,13 +255,13 @@ void UKF::PredictXSig(MatrixXd &Xsig, int n_aug, double delta_t)
     yawd_p = yawd_p + nu_yawdd*delta_t;
 
     // write predicted sigma point into right column
-    Xsig(0,i) = px_p;
-    Xsig(1,i) = py_p;
-    Xsig(2,i) = v_p;
+    Xsig_pred(0,i) = px_p;
+    Xsig_pred(1,i) = py_p;
+    Xsig_pred(2,i) = v_p;
 
     Tools tools;
-    Xsig(3,i) = tools.ConstrainAngle(yaw_p);
-    Xsig(4,i) = yawd_p;
+    Xsig_pred(3,i) = tools.ConstrainAngle(yaw_p);
+    Xsig_pred(4,i) = yawd_p;
   }  
 }
 
@@ -312,10 +312,11 @@ void UKF::Prediction(double delta_t) {
   vector, x_. Predict sigma points, the state, and the state covariance matrix.
   */
 
-  CreateXSig(Xsig_pred_, P_, n_aug_, x_, std_a_, std_yawdd_, lambda_);
+  MatrixXd Xsig_aug = MatrixXd(n_aug_, 2 * n_aug_ + 1);
+  MakeXSigAug(Xsig_aug, P_, n_aug_, x_, std_a_, std_yawdd_, lambda_);
 
   // predict sigma points
-  PredictXSig(Xsig_pred_, n_aug_, delta_t);
+  MakeXSigPred(Xsig_aug, Xsig_pred_, n_aug_, delta_t);
 
   PredictMeanAndCovariance(Xsig_pred_, n_aug_, lambda_, weights_, x_, P_);
 }
