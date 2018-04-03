@@ -92,12 +92,9 @@ public:
                       int n_aug, VectorXd &x,
                       float std_a, float std_yawdd, int lambda);
   void MakeXSigPred(const MatrixXd &Xsig_aug, MatrixXd &Xsig_pred, int n_aug, double delta_t);
-  void PredictMeanAndCovariance(MatrixXd &Xsig, 
-                                int n_aug, 
-                                int lambda, 
-                                VectorXd &weights,
-                                VectorXd &x, 
-                                MatrixXd &P);
+  void PredictMeanAndCovariance(const MatrixXd &Xsig_pred, int n_aug, 
+                                    double lambda, VectorXd &weights,
+                                    VectorXd &x, MatrixXd &P);
 
   /**
    * Prediction Predicts sigma points, the state, and the state covariance

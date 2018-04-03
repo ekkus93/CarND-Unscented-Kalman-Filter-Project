@@ -265,25 +265,25 @@ void UKF::MakeXSigPred(const MatrixXd &Xsig_aug, MatrixXd &Xsig_pred, int n_aug,
   }  
 }
 
-void UKF::PredictMeanAndCovariance(MatrixXd &Xsig, int n_aug, 
-                                    int lambda, VectorXd &weights,
+void UKF::PredictMeanAndCovariance(const MatrixXd &Xsig_pred, int n_aug, 
+                                    double lambda, VectorXd &weights,
                                     VectorXd &x, MatrixXd &P)
 {
   Tools tools;
 
   // Lesson 7, section 24: Predicted Mean and Convariance 
   // set weights
-  double weight_0 = lambda/(lambda+n_aug);
-  weights(0) = weight_0;
-  for (int i=1; i<2*n_aug+1; i++) {  //2n+1 weights
+  weights(0) = lambda/(lambda+n_aug);
+  for (int i=1; i<2*n_aug+1; i++) {  
+    //2n+1 weights
     weights(i) = 0.5/(n_aug+lambda);
   }
 
   //predicted state mean
   x.fill(0.0);
   for (int i = 0; i < 2 * n_aug + 1; i++) {  
-    //iterate over sigma points
-    x = x+ weights(i) * Xsig.col(i);
+    //iterate over sigma points 
+    x = x + weights(i) * Xsig_pred.col(i);
   }
 
   //predicted state covariance matrix
@@ -292,10 +292,10 @@ void UKF::PredictMeanAndCovariance(MatrixXd &Xsig, int n_aug,
     //iterate over sigma points
 
     // state difference
-    VectorXd x_diff = Xsig.col(i) - x;
+    VectorXd x_diff = Xsig_pred.col(i) - x;
     x_diff(3) = tools.ConstrainAngle(x_diff(3));
 
-    P = P + weights(i) * x_diff * x_diff.transpose() ;
+    P = P + weights(i) * x_diff * x_diff.transpose();
   }
 }
 
