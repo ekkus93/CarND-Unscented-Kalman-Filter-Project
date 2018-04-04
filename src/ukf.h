@@ -53,7 +53,7 @@ public:
   double std_radphi_;
 
   ///* Radar measurement noise standard deviation radius change in m/s
-  double std_radrd_ ;
+  double std_radrd_;
 
   ///* Weights of sigma points
   VectorXd weights_;
@@ -63,6 +63,8 @@ public:
 
   ///* Augmented state dimension
   int n_aug_;
+
+  int n_z_;
 
   ///* Sigma point spreading parameter
   double lambda_;
@@ -109,8 +111,20 @@ public:
    */
   void UpdateLidar(MeasurementPackage meas_package);
 
-  void MakeZsig(const MatrixXd &Xsig, 
-                MatrixXd &Zsig);
+  void MakeZsig(const MatrixXd &Xsig_pred, int n_aug, 
+                    MatrixXd &Zsig);
+  void PredictMeasurementRadar(const MatrixXd &Zsig,
+                                  const VectorXd &weights,
+                                  int n_aug, int n_z,  
+                                  double std_radr, double std_radphi,
+                                  double std_radrd,
+                                  VectorXd &z_pred, MatrixXd &S);
+  void UpdateStateRadar(const VectorXd &weights, 
+                            const MatrixXd &Xsig_pred,
+                            const VectorXd &z_pred, const MatrixXd &Zsig,
+                            const MatrixXd &S, const VectorXd &z,
+                            int n_aug, int n_x, int n_z, 
+                            VectorXd &x, MatrixXd &P);
 
   /**
    * Updates the state and the state covariance matrix using a radar measurement
