@@ -64,10 +64,18 @@ public:
   ///* Augmented state dimension
   int n_aug_;
 
-  int n_z_;
+  int n_zlas_;
+  int n_zrad_;
 
   ///* Sigma point spreading parameter
   double lambda_;
+
+  double NIS_lidar_;
+  double NIS_radar_;
+  double mean_NIS_lidar_;
+  double mean_NIS_radar_;
+  long lidar_reading_cnt_;
+  long radar_reading_cnt_;
 
   /**
    * Constructor
@@ -82,7 +90,7 @@ public:
   void Init(const MeasurementPackage &measurement_pack);
   void InitLidar(const MeasurementPackage &measurement_pack);
   void InitRadar(const MeasurementPackage &measurement_pack);
-  float CalcDt(long long t0, long long t1);
+  double CalcDt(long long t0, long long t1);
 
   /**
    * ProcessMeasurement
@@ -92,7 +100,8 @@ public:
 
   void MakeXSigAug(MatrixXd &Xsig_aug, const MatrixXd &P,
                       int n_aug, VectorXd &x,
-                      float std_a, float std_yawdd, int lambda);
+                      double std_a, double std_yawdd, double lambda);
+
   void MakeXSigPred(const MatrixXd &Xsig_aug, MatrixXd &Xsig_pred, int n_aug, double delta_t);
   void PredictMeanAndCovariance(const MatrixXd &Xsig_pred, int n_aug, 
                                     double lambda, VectorXd &weights,
@@ -105,25 +114,40 @@ public:
    */
   void Prediction(double delta_t);
 
+  void PredictMeasurementLidar(const MatrixXd &Zsig,
+                                const VectorXd &weights,
+                                int n_aug, int n_zlas,  
+                                double std_laspx, double std_laspy,
+                                VectorXd &z_pred, MatrixXd &S);  
+  double UpdateStateLidar(const VectorXd &weights, 
+                                const MatrixXd &Xsig_pred,
+                                const VectorXd &z_pred, const MatrixXd &Zsig,
+                                const MatrixXd &S, const VectorXd &z,
+                                int n_aug, int n_x, int n_zlas, 
+                                VectorXd &x, MatrixXd &P);
+
+  void MakeZsigLidar(const MatrixXd &Xsig_pred, 
+                        int n_aug, MatrixXd &Zsig);
+
   /**
    * Updates the state and the state covariance matrix using a laser measurement
    * @param meas_package The measurement at k+1
    */
   void UpdateLidar(MeasurementPackage meas_package);
 
-  void MakeZsig(const MatrixXd &Xsig_pred, int n_aug, 
+  void MakeZsigRadar(const MatrixXd &Xsig_pred, int n_aug, 
                     MatrixXd &Zsig);
   void PredictMeasurementRadar(const MatrixXd &Zsig,
                                   const VectorXd &weights,
-                                  int n_aug, int n_z,  
+                                  int n_aug, int n_zrad,  
                                   double std_radr, double std_radphi,
                                   double std_radrd,
                                   VectorXd &z_pred, MatrixXd &S);
-  void UpdateStateRadar(const VectorXd &weights, 
+  double UpdateStateRadar(const VectorXd &weights, 
                             const MatrixXd &Xsig_pred,
                             const VectorXd &z_pred, const MatrixXd &Zsig,
                             const MatrixXd &S, const VectorXd &z,
-                            int n_aug, int n_x, int n_z, 
+                            int n_aug, int n_x, int n_zrad, 
                             VectorXd &x, MatrixXd &P);
 
   /**

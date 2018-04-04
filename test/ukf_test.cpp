@@ -7,6 +7,7 @@
 
 TEST(UFKTest, InitLidar)
 {
+  cout << "###1\n";
   LaserRadarDataReader dr = LaserRadarDataReader("/Users/phillipcchin/work/carnd/CarND-Unscented-Kalman-Filter-Project/data/obj_pose-laser-radar-synthetic-input.txt");
 
   char lineStr[256];
@@ -20,17 +21,24 @@ TEST(UFKTest, InitLidar)
   LidarData ld = LidarData(lineStr);
   MeasurementPackage mp = ld.ToMeasurementPackage();
 
+  cout << "###2\n";
   UKF ukf;
 
+  cout << "###3\n";
   ukf.InitLidar(mp);
+  cout << "###4\n";
 
   EXPECT_NEAR(3.122427e-01, ukf.x_(0), 0.001);
   EXPECT_NEAR(5.803398e-01, ukf.x_(1), 0.001);
   EXPECT_NEAR(0.0, ukf.x_(2), 0.001);
   EXPECT_NEAR(0.0, ukf.x_(3), 0.001);
+  cout << "###5\n";
 
   EXPECT_EQ(mp.timestamp_, ukf.GetPreviousTimestamp());
   EXPECT_TRUE(ukf.GetIsInitialized());  
+  cout << "###6\n";
+
+  cout << "Leaving InitLidar\n";
 }
 
 TEST(UFKTest, InitRadar) {
@@ -38,9 +46,9 @@ TEST(UFKTest, InitRadar) {
   LaserRadarDataReader dr = LaserRadarDataReader("/Users/phillipcchin/work/carnd/CarND-Unscented-Kalman-Filter-Project/data/obj_pose-laser-radar-synthetic-input.txt");
 
   char lineStr[256];
-  float expected_val, actual_val;
-  float err_sum_x = 0.0;
-  float err_sum_y = 0.0;
+  double expected_val, actual_val;
+  double err_sum_x = 0.0;
+  double err_sum_y = 0.0;
   int n=100;
 
   dr.GetLine(lineStr);
@@ -100,13 +108,13 @@ TEST(UFKTest, MakeXSigAug)
   int n_aug = 7;
 
   //Process noise standard deviation longitudinal acceleration in m/s^2
-  float std_a = 0.2;
+  double std_a = 0.2;
 
   //Process noise standard deviation yaw acceleration in rad/s^2
-  float std_yawdd = 0.2;
+  double std_yawdd = 0.2;
 
   //define spreading parameter
-  int lambda = 3 - ukf.n_aug_;
+  double lambda = 3 - ukf.n_aug_;
 
   //create sigma point matrix
   MatrixXd Xsig_aug = MatrixXd(n_aug, 2 * n_aug + 1);
@@ -271,14 +279,14 @@ TEST(UFKTest, PredictMeasurementRadar)
   int n_aug = 7;
 
   //set measurement dimension, radar can measure r, phi, and r_dot
-  int n_z = 3;
+  int n_zrad = 3;
 
   //define spreading parameter
   double lambda = 3 - n_aug;
 
   //set vector for weights
   VectorXd weights = VectorXd(2*n_aug+1);
-   double weight_0 = lambda/(lambda+n_aug);
+  double weight_0 = lambda/(lambda+n_aug);
   weights(0) = weight_0;
   for (int i=1; i<2*n_aug+1; i++) {  
     double weight = 0.5/(n_aug+lambda);
@@ -303,22 +311,22 @@ TEST(UFKTest, PredictMeasurementRadar)
          0.5367, 0.47338, 0.67809, 0.55455, 0.64364, 0.54337,  0.5367, 0.53851, 0.60017, 0.39546, 0.51900, 0.42991, 0.530188,  0.5367, 0.535048,
           0.352, 0.29997, 0.46212, 0.37633,  0.4841, 0.41872,   0.352, 0.38744, 0.40562, 0.24347, 0.32926,  0.2214, 0.28687,   0.352, 0.318159;
 
-  VectorXd z_pred = VectorXd(n_z);
-  MatrixXd S = MatrixXd(n_z,n_z);
+  VectorXd z_pred = VectorXd(n_zrad);
+  MatrixXd S = MatrixXd(n_zrad, n_zrad);
 
-  VectorXd z_pred_expected = VectorXd(n_z);
+  VectorXd z_pred_expected = VectorXd(n_zrad);
   z_pred_expected << 6.12155, 0.245993, 2.10313;
 
-  MatrixXd S_expected = MatrixXd(n_z,n_z);
+  MatrixXd S_expected = MatrixXd(n_zrad, n_zrad);
   S_expected <<
     0.0946171, -0.000139448, 0.00407016,
     -0.000139448, 0.000617548, -0.000770652,
     0.00407016, -0.000770652, 0.0180917;
 
   //create matrix for sigma points in measurement space
-  MatrixXd Zsig = MatrixXd(n_z, 2 * n_aug + 1); 
-  ukf.MakeZsig(Xsig_pred, n_aug, Zsig);
-  ukf.PredictMeasurementRadar(Zsig, weights, n_aug, n_z,  
+  MatrixXd Zsig = MatrixXd(n_zrad, 2 * n_aug + 1); 
+  ukf.MakeZsigRadar(Xsig_pred, n_aug, Zsig);
+  ukf.PredictMeasurementRadar(Zsig, weights, n_aug, n_zrad,  
                                 std_radr, std_radphi, std_radrd,
                                 z_pred, S);
 
@@ -347,7 +355,7 @@ TEST(UFKTest, UpdateStateRadar)
   int n_aug = 7;
 
   //set measurement dimension, radar can measure r, phi, and r_dot
-  int n_z = 3;
+  int n_zrad = 3;
 
   //define spreading parameter
   double lambda = 3 - n_aug;
@@ -389,28 +397,28 @@ TEST(UFKTest, UpdateStateRadar)
  -0.0029937,  0.0079109, 0.00079297,   0.011249,   0.0126972;
 
   //create example matrix with sigma points in measurement space
-  MatrixXd Zsig = MatrixXd(n_z, 2 * n_aug + 1);
+  MatrixXd Zsig = MatrixXd(n_zrad, 2 * n_aug + 1);
   Zsig <<
       6.1190,  6.2334,  6.1531,  6.1283,  6.1143,  6.1190,  6.1221,  6.1190,  6.0079,  6.0883,  6.1125,  6.1248,  6.1190,  6.1188,  6.12057,
      0.24428,  0.2337, 0.27316, 0.24616, 0.24846, 0.24428, 0.24530, 0.24428, 0.25700, 0.21692, 0.24433, 0.24193, 0.24428, 0.24515, 0.245239,
       2.1104,  2.2188,  2.0639,   2.187,  2.0341,  2.1061,  2.1450,  2.1092,  2.0016,   2.129,  2.0346,  2.1651,  2.1145,  2.0786,  2.11295;
 
   //create example vector for mean predicted measurement
-  VectorXd z_pred = VectorXd(n_z);
+  VectorXd z_pred = VectorXd(n_zrad);
   z_pred <<
       6.12155,
      0.245993,
       2.10313;
 
   //create example matrix for predicted measurement covariance
-  MatrixXd S = MatrixXd(n_z,n_z);
+  MatrixXd S = MatrixXd(n_zrad, n_zrad);
   S <<
       0.0946171, -0.000139448,   0.00407016,
    -0.000139448,  0.000617548, -0.000770652,
      0.00407016, -0.000770652,    0.0180917;
 
   //create example vector for incoming radar measurement
-  VectorXd z = VectorXd(n_z);
+  VectorXd z = VectorXd(n_zrad);
   z <<
       5.9214,
       0.2187,
@@ -428,7 +436,7 @@ TEST(UFKTest, UpdateStateRadar)
 
   ukf.UpdateStateRadar(weights, Xsig_pred,
                         z_pred, Zsig, S, z, 
-                        n_aug, n_x, n_z, 
+                        n_aug, n_x, n_zrad, 
                         x, P);
 
   for(int i=0; i<x_expected.size(); i++)
