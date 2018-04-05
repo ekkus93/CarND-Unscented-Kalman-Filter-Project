@@ -3,6 +3,7 @@
 #include <sstream>
 #include <vector>
 #include <assert.h>
+#include <iostream>
 #include "tools.h"
 
 using namespace std;
@@ -11,6 +12,19 @@ using Eigen::VectorXd;
 // RadarData
 RadarData::RadarData() 
 {
+  timestamp_ = 0;
+
+  rho_measured_ = 0.0;
+  phi_measured_ = 0.0;  
+  rhodot_measured_ = 0.0;
+
+  x_groundtruth_ = 0.0;
+  y_groundtruth_ = 0.0;
+
+  vx_groundtruth_ =  0.0;
+  vy_groundtruth_ =  0.0;
+  yaw_groundtruth_ =  0.0;
+  yawrate_groundtruth_ = 0.0;     
 }
 
 RadarData::RadarData(const MeasurementPackage &measurement_pack) 
@@ -31,6 +45,55 @@ RadarData::RadarData(const MeasurementPackage &measurement_pack)
     yaw_groundtruth_ =  measurement_pack.raw_measurements_(7);
     yawrate_groundtruth_ =  measurement_pack.raw_measurements_(8); 
   }
+  else 
+  {
+    x_groundtruth_ = 0.0;
+    y_groundtruth_ = 0.0;
+
+    vx_groundtruth_ =  0.0;
+    vy_groundtruth_ =  0.0;
+    yaw_groundtruth_ =  0.0;
+    yawrate_groundtruth_ = 0.0;   
+  }
+}
+
+RadarData::RadarData(float x, float y, long long timestamp)
+{
+  timestamp_ = timestamp;
+
+  rho_measured_ = sqrt(x*x + y*y);
+  phi_measured_ = atan2(y, x);  
+  rhodot_measured_ = 0.0;
+
+  float _x;
+  float _y;
+  GetXY(_x, _y);
+  cout << "x,y = " << _x << ", " << _y << "\n";
+
+  x_groundtruth_ = 0.0;
+  y_groundtruth_ = 0.0;
+
+  vx_groundtruth_ =  0.0;
+  vy_groundtruth_ =  0.0;
+  yaw_groundtruth_ =  0.0;
+  yawrate_groundtruth_ = 0.0;   
+}
+
+RadarData::RadarData(float rho, float phi, float rhodot, long long timestamp)
+{
+  timestamp_ = timestamp;
+
+  rho_measured_ = rho;
+  phi_measured_ = phi; 
+  rhodot_measured_ = rhodot;
+
+  x_groundtruth_ = 0.0;
+  y_groundtruth_ = 0.0;
+
+  vx_groundtruth_ =  0.0;
+  vy_groundtruth_ =  0.0;
+  yaw_groundtruth_ =  0.0;
+  yawrate_groundtruth_ = 0.0;   
 }
 
 RadarData::RadarData(const char* lineStr)
@@ -78,9 +141,9 @@ void RadarData::GetXY(float &x, float &y)
 {
     Tools tools;
 
-    float normalized_rho = tools.ConstrainAngle(rho_measured_);
-    x = rho_measured_ * cos(phi_measured_);
-    y = rho_measured_ * sin(phi_measured_);
+    float normalized_phi_measured_ = tools.ConstrainAngle(phi_measured_);
+    x = rho_measured_ * cos(normalized_phi_measured_);
+    y = rho_measured_ * sin(normalized_phi_measured_);
 
     assert(!isnan(x));
     assert(!isnan(y));
@@ -99,6 +162,18 @@ VectorXd RadarData::GetGroundTruth()
 
 LidarData::LidarData()
 {
+  timestamp_ = 0;
+
+  x_measured_ = 0.0;
+  y_measured_ = 0.0;
+
+  x_groundtruth_ = 0.0;
+  y_groundtruth_ = 0.0;
+
+  vx_groundtruth_ =  0.0;
+  vy_groundtruth_ =  0.0;
+  yaw_groundtruth_ =  0.0;
+  yawrate_groundtruth_ = 0.0;     
 }
 
 LidarData::LidarData(const MeasurementPackage &measurement_pack)
@@ -120,6 +195,50 @@ LidarData::LidarData(const MeasurementPackage &measurement_pack)
     yaw_groundtruth_ = measurement_pack.raw_measurements_(6);
     yawrate_groundtruth_ = measurement_pack.raw_measurements_(7);
   }
+  else 
+  {
+    x_groundtruth_ = 0.0;
+    y_groundtruth_ = 0.0;
+
+    vx_groundtruth_ =  0.0;
+    vy_groundtruth_ =  0.0;
+    yaw_groundtruth_ =  0.0;
+    yawrate_groundtruth_ = 0.0;   
+  }  
+}
+
+LidarData::LidarData(float x, float y, long long timestamp)
+{
+  timestamp_ = timestamp;
+
+  x_measured_ = x;
+  y_measured_ = y;
+
+  x_groundtruth_ = 0.0;
+  y_groundtruth_ = 0.0;
+
+  vx_groundtruth_ =  0.0;
+  vy_groundtruth_ =  0.0;
+  yaw_groundtruth_ =  0.0;
+  yawrate_groundtruth_ = 0.0;   
+}
+
+LidarData::LidarData(float rho, float phi, float rhodot, long long timestamp)
+{
+  timestamp_ = timestamp;
+
+  Tools tools;
+  float normalized_phi = tools.ConstrainAngle(phi);
+  x_measured_  = rho * cos(normalized_phi);
+  y_measured_ = rho * sin(normalized_phi);  
+
+  x_groundtruth_ = 0.0;
+  y_groundtruth_ = 0.0;
+
+  vx_groundtruth_ =  0.0;
+  vy_groundtruth_ =  0.0;
+  yaw_groundtruth_ =  0.0;
+  yawrate_groundtruth_ = 0.0;   
 }
 
 LidarData::LidarData(const char* lineStr)

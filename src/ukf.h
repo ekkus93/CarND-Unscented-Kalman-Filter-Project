@@ -72,10 +72,11 @@ public:
 
   double NIS_lidar_;
   double NIS_radar_;
-  double mean_NIS_lidar_;
-  double mean_NIS_radar_;
-  long lidar_reading_cnt_;
-  long radar_reading_cnt_;
+  int lidar_reading_cnt_;
+  int radar_reading_cnt_;
+  int lidar_reading_under_cnt_;
+  int radar_reading_under_cnt_;
+  double chi_threshold;
 
   /**
    * Constructor
@@ -98,13 +99,14 @@ public:
    */
   void ProcessMeasurement(MeasurementPackage measurement_pack);
 
-  void MakeXSigAug(MatrixXd &Xsig_aug, const MatrixXd &P,
+  void MakeXSigAug(const MatrixXd &P,
                       int n_aug, VectorXd &x,
-                      double std_a, double std_yawdd, double lambda);
+                      double std_a, double std_yawdd, double lambda, MatrixXd &Xsig_aug);
 
-  void MakeXSigPred(const MatrixXd &Xsig_aug, MatrixXd &Xsig_pred, int n_aug, double delta_t);
+  void MakeXSigPred(const MatrixXd &Xsig_aug, int n_aug, double delta_t, 
+                    MatrixXd &Xsig_pred);
   void PredictMeanAndCovariance(const MatrixXd &Xsig_pred, int n_aug, 
-                                    double lambda, VectorXd &weights,
+                                    double lambda, const VectorXd &weights,
                                     VectorXd &x, MatrixXd &P);
 
   /**
@@ -161,6 +163,10 @@ public:
   // for unit tests
   bool GetIsInitialized();
   long long GetPreviousTimestamp();
+
+  VectorXd GetX();
+  MatrixXd GetP();
+  MatrixXd GetXSigPred();
 };
 
 #endif /* UKF_H */

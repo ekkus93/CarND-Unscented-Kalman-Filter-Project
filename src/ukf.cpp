@@ -25,26 +25,23 @@ UKF::UKF() {
   n_zrad_ = 3;
   lambda_ = 3 - n_aug_;  
 
-  cout << "###a1\n";
   // initial state vector
   x_ = VectorXd(n_x_);
   x_.fill(0.0);
-  cout << "###a2\n";  
 
   // initial covariance matrix
   P_ = MatrixXd(n_x_, n_x_);
-  P_.fill(0.0);
-  cout << "###a3\n";  
+  P_ << 1, 0, 0, 0, 0,
+        0, 1, 0, 0, 0,
+        0, 0, 1, 0, 0,
+        0, 0, 0, 1, 0,
+        0, 0, 0, 0, 1;
 
   // Process noise standard deviation longitudinal acceleration in m/s^2
-  //std_a_ = 30;
-  //std_a_ = 0.2;
-  std_a_ = 0.2;
+  std_a_ = 0.5;
 
   // Process noise standard deviation yaw acceleration in rad/s^2
-  //std_yawdd_ = 30;
-  //std_yawdd_ = 0.2;
-  std_yawdd_ = 0.2;
+  std_yawdd_ = 0.8;
   
   //DO NOT MODIFY measurement noise values below these are provided by the sensor manufacturer.
   // Laser measurement noise standard deviation position1 in m
@@ -71,28 +68,24 @@ UKF::UKF() {
   Hint: one or more values initialized above might be wildly off...
   */
 
-  cout << "###a4\n";
   weights_ = VectorXd(2*n_aug_+1);
   weights_(0) = lambda_/(lambda_+n_aug_);
   for (int i=1; i<2*n_aug_+1; i++) {  
     weights_(i) = 0.5/(n_aug_+lambda_);
   }
 
-  cout << "###a5\n";
   Xsig_pred_ = MatrixXd(n_x_, 2 * n_aug_ + 1);
-  cout << "###Xsig_pred_: " << Xsig_pred_.rows() << ", " << Xsig_pred_.cols() << "\n";
   Xsig_pred_.fill(0.0);
-  cout << "###a6\n";
 
   previous_timestamp_ = 0;
 
   NIS_lidar_ = 0.0;
   NIS_radar_ = 0.0;
-  mean_NIS_lidar_ = 0.0;
-  mean_NIS_radar_ = 0.0;
   lidar_reading_cnt_ = 0;
   radar_reading_cnt_ = 0;
-  cout << "###a7\n";
+  lidar_reading_under_cnt_ = 0;
+  radar_reading_under_cnt_ = 0;
+  chi_threshold = 7.815;
 }
 
 UKF::~UKF() {}
@@ -157,7 +150,7 @@ double UKF::CalcDt(long long t0, long long t1)
  * either radar or laser.
  */
 void UKF::ProcessMeasurement(MeasurementPackage measurement_pack) {
-  cout << "###ProcessMeasurement\n";
+  //cout << "###ProcessMeasurement\n";
   /**
   TODO:
 
@@ -170,11 +163,18 @@ void UKF::ProcessMeasurement(MeasurementPackage measurement_pack) {
   }
 
   double dt = CalcDt(previous_timestamp_, measurement_pack.timestamp_);
+  /*
+  From https://discussions.udacity.com/t/numerical-instability-of-the-implementation/230449/2
+  to deal numerical instability 
+  */
+  while (dt > 0.1)
+  {
+    const double _dt = 0.05;
+    Prediction(_dt);
+    dt -= _dt;
+  }
 
-  //cout << "###Before prediction: " << measurement_pack.timestamp_ << "\n";
   Prediction(dt);
-  //cout << "###After prediction " << measurement_pack.timestamp_ << "\n";
-  DisplayData();
 
   if (measurement_pack.sensor_type_ == MeasurementPackage::LASER && use_laser_) 
   {
@@ -189,17 +189,13 @@ void UKF::ProcessMeasurement(MeasurementPackage measurement_pack) {
     return;
   }
 
-  /*
-  cout << "###After update\n";
-  DisplayData();  
-  */
-
   previous_timestamp_ = measurement_pack.timestamp_;
 }
 
-void UKF::MakeXSigAug(MatrixXd &Xsig_aug, const MatrixXd &P,
+void UKF::MakeXSigAug(const MatrixXd &P,
                       int n_aug, VectorXd &x,
-                      double std_a, double std_yawdd, double lambda)
+                      double std_a, double std_yawdd, double lambda,
+                      MatrixXd &Xsig_aug)
 {
   //Lesson 7, section 18: Augmentation Assigment 2
   VectorXd x_aug = VectorXd(n_aug);
@@ -227,11 +223,13 @@ void UKF::MakeXSigAug(MatrixXd &Xsig_aug, const MatrixXd &P,
   }  
 }
 
-void UKF::MakeXSigPred(const MatrixXd &Xsig_aug, MatrixXd &Xsig_pred, int n_aug, double delta_t)
+void UKF::MakeXSigPred(const MatrixXd &Xsig_aug, int n_aug, double delta_t, 
+                        MatrixXd &Xsig_pred)
 {
   // Predict Sigma Points
   // Lesson 7, section 21: Sigma Point Prediction Assignment 2
-  
+  Tools tools;
+
   for(int i=0; i<2*n_aug+1; i++)
   {
     // extract values for better readability
@@ -267,6 +265,7 @@ void UKF::MakeXSigPred(const MatrixXd &Xsig_aug, MatrixXd &Xsig_pred, int n_aug,
     py_p = py_p + 0.5*nu_a*delta_t*delta_t * sin(yaw);
     v_p = v_p + nu_a*delta_t;
 
+    //yaw_p = yaw_p + yawd*delta_t + 0.5*nu_yawdd*delta_t*delta_t;
     yaw_p = yaw_p + 0.5*nu_yawdd*delta_t*delta_t;
     yawd_p = yawd_p + nu_yawdd*delta_t;
 
@@ -275,37 +274,23 @@ void UKF::MakeXSigPred(const MatrixXd &Xsig_aug, MatrixXd &Xsig_pred, int n_aug,
     Xsig_pred(1,i) = py_p;
     Xsig_pred(2,i) = v_p;
 
-    Tools tools;
-    Xsig_pred(3,i) = tools.ConstrainAngle(yaw_p);
+    Xsig_pred(3,i) = yaw_p;
     Xsig_pred(4,i) = yawd_p;
   }  
 }
 
 void UKF::PredictMeanAndCovariance(const MatrixXd &Xsig_pred, int n_aug, 
-                                    double lambda, VectorXd &weights,
+                                    double lambda, const VectorXd &weights,
                                     VectorXd &x, MatrixXd &P)
 {
   Tools tools;
 
   // Lesson 7, section 24: Predicted Mean and Convariance 
-  // set weights
-  weights(0) = lambda/(lambda+n_aug);
-  for (int i=1; i<2*n_aug+1; i++) {  
-    //2n+1 weights
-    weights(i) = 0.5/(n_aug+lambda);
-  }
 
   //predicted state mean
   x.fill(0.0);
   for (int i = 0; i < 2 * n_aug + 1; i++) {  
     //iterate over sigma points 
-    /*
-    cout << "###" << i << "\n";
-    cout << "x: " << x.size() << "\n" << x << "\n";
-    cout << "weights(" << i << "): " << weights.size() << "\n" << weights(i) << "\n";
-    cout << "Xsig_pred.col(" << i << "): " << Xsig_pred.col(i).size() << "\n" 
-          << Xsig_pred.col(i) << "\n";
-    */
     x = x + weights(i) * Xsig_pred.col(i);
   }
 
@@ -336,10 +321,10 @@ void UKF::Prediction(double delta_t) {
   */
 
   MatrixXd Xsig_aug = MatrixXd(n_aug_, 2 * n_aug_ + 1);
-  MakeXSigAug(Xsig_aug, P_, n_aug_, x_, std_a_, std_yawdd_, lambda_);
+  MakeXSigAug(P_, n_aug_, x_, std_a_, std_yawdd_, lambda_, Xsig_aug);
 
   // predict sigma points
-  MakeXSigPred(Xsig_aug, Xsig_pred_, n_aug_, delta_t);
+  MakeXSigPred(Xsig_aug, n_aug_, delta_t, Xsig_pred_);
 
   PredictMeanAndCovariance(Xsig_pred_, n_aug_, lambda_, weights_, x_, P_);
 }
@@ -454,16 +439,24 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
                           std_laspx_, std_laspy_, 
                           z_pred, S);
 
-  NIS_lidar_ = UpdateStateRadar(weights_, Xsig_pred_,
+  NIS_lidar_ = UpdateStateLidar(weights_, Xsig_pred_,
                                 z_pred, Zsig, S, meas_package.raw_measurements_, 
                                 n_aug_, n_x_, n_zlas_, 
                                 x_, P_);
 
-  mean_NIS_lidar_ = ((mean_NIS_lidar_ * lidar_reading_cnt_) + NIS_lidar_)/(lidar_reading_cnt_+1);
   lidar_reading_cnt_++;
+  if (NIS_lidar_ <= chi_threshold) 
+  {
+    lidar_reading_under_cnt_++;
+  }
+
+  /*
+  double chi_lidar = double(lidar_reading_under_cnt_)/lidar_reading_cnt_;
 
   cout << "NIS_lidar_: " << NIS_lidar_ << "\n";
-  cout << "mean_NIS_lidar_: " << NIS_lidar_ << "\n";
+  //cout << "mean_NIS_lidar_: " << mean_NIS_lidar_ << "\n";
+  cout << "chi_lidar: " << chi_lidar << "\n";
+  */
 }
 
 void UKF::MakeZsigRadar(const MatrixXd &Xsig_pred, int n_aug, 
@@ -608,18 +601,25 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
                           n_aug_, n_x_, n_zrad_, 
                           x_, P_);
 
-  mean_NIS_radar_ = ((mean_NIS_radar_ * radar_reading_cnt_) + NIS_radar_)/(radar_reading_cnt_+1);
   radar_reading_cnt_++;
+  if (NIS_radar_ <= chi_threshold) 
+  {
+    radar_reading_under_cnt_++;
+  }
 
+  /*
+  double chi_radar = double(radar_reading_under_cnt_)/radar_reading_cnt_;
   cout << "NIS_radar_: " << NIS_radar_ << "\n";
-
-  cout << "mean_NIS_radar_: " << NIS_radar_ << "\n";
+  cout << "chi_radar: " << chi_radar << "\n";
+  */
 }
 
 void UKF::DisplayData()
 {
   cout << "x_: \n" << x_ << "\n";
   cout << "P_: \n" << P_ << "\n";
+  cout << "Xsig_pred_: \n" << Xsig_pred_ << "\n";
+  //cout << "weights_: \n" << weights_ << "\n";
 }
 
 // for unit tests
@@ -631,4 +631,19 @@ bool UKF::GetIsInitialized()
 long long UKF::GetPreviousTimestamp()
 {
   return previous_timestamp_;
+}
+
+VectorXd UKF::GetX()
+{
+  return x_;
+}
+
+MatrixXd UKF::GetP()
+{
+  return P_;
+}
+
+MatrixXd UKF::GetXSigPred()
+{
+  return Xsig_pred_;
 }

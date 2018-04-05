@@ -11,6 +11,8 @@ class RadarData {
   public:
     RadarData();
     RadarData(const MeasurementPackage &measurement_pack);
+    RadarData(float x, float y, long long timestamp);
+    RadarData(float rho, float phi, float rhodot, long long timestamp);
     RadarData(const char* lineStr);
     virtual ~RadarData();
 
@@ -35,6 +37,8 @@ class LidarData {
   public:
     LidarData();
     LidarData(const MeasurementPackage &measurement_pack);
+    LidarData(float x, float y, long long timestamp);
+    LidarData(float rho, float phi, float rhodot, long long timestamp);
     LidarData(const char* lineStr);
     virtual ~LidarData();
 

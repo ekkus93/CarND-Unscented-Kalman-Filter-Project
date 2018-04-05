@@ -3,6 +3,7 @@
 #include "ukf.h"
 #include "sensor_data.h"
 #include "util.h"
+#include "Eigen/Dense"
 #include "gtest/gtest.h"
 
 TEST(UFKTest, InitLidar)
@@ -140,7 +141,7 @@ TEST(UFKTest, MakeXSigAug)
     0, 0, 0, 0, 0, 0, 0.34641, 0, 0, 0, 0, 0, 0, -0.34641, 0,
     0, 0, 0, 0, 0, 0, 0, 0.34641, 0, 0, 0, 0, 0, 0, -0.34641;
 
-    ukf.MakeXSigAug(Xsig_aug, P, n_aug, x, std_a, std_yawdd, lambda);
+    ukf.MakeXSigAug(P, n_aug, x, std_a, std_yawdd, lambda, Xsig_aug);
 
     for(int row=0; row<Xsig_aug_expected.rows(); row++)
     {
@@ -185,7 +186,7 @@ TEST(UFKTest, MakeXSigPred)
 
   double delta_t = 0.1; //time diff in sec    
 
-  ukf.MakeXSigPred(Xsig_aug, Xsig_pred, n_aug, delta_t);
+  ukf.MakeXSigPred(Xsig_aug, n_aug, delta_t, Xsig_pred);
 
   for(int row=0; row<Xsig_pred_expected.rows(); row++)
   {
@@ -226,6 +227,10 @@ TEST(UFKTest, PredictMeanAndCovariance)
 
   //create vector for weights
   VectorXd weights = VectorXd(2*n_aug+1);
+  weights(0) = lambda/(lambda+n_aug);
+  for (int i=1; i<2*n_aug+1; i++) {  
+    weights(i) = 0.5/(n_aug+lambda);
+  }
   
   //create vector for predicted state
   VectorXd x = VectorXd(n_x);
@@ -250,6 +255,9 @@ TEST(UFKTest, PredictMeanAndCovariance)
 
   ukf.PredictMeanAndCovariance(Xsig_pred, n_aug, lambda, weights, x, P);
 
+  cout << "x:\n" << x << "\n";
+  cout << "x_expected:\n" << x_expected << "n";  
+
   for(int i=0; i<x_expected.size(); i++)
   {
     if (fabs(x(i) - x_expected(i)) > 0.0001)
@@ -258,6 +266,9 @@ TEST(UFKTest, PredictMeanAndCovariance)
     }
     EXPECT_NEAR(x(i), x_expected(i), 0.001); 
   }
+
+  cout << "P:\n" << P << "\n";
+  cout << "P_expected:\n" << P_expected << "n";    
 
   for(int row=0; row<P_expected.rows(); row++)
   {
@@ -452,3 +463,99 @@ TEST(UFKTest, UpdateStateRadar)
     }
   }    
 }
+
+/*
+TEST(UFKTest, UpdateLidar)
+{
+  UKF radarUKF;
+  UKF lidarUKF;
+
+  float x0 = 1.0;
+  float y0 = 2.0;
+  float x1 = 2.0;
+  float y1 = 3.0;
+
+  RadarData rd0 = RadarData(x0, y0, 0);
+  RadarData rd1 = RadarData(x1, y1, 500000);
+  LidarData ld0 = LidarData(x0, y0, 0);
+  LidarData ld1 = LidarData(x1, y1, 500000);
+
+  radarUKF.Init(rd0.ToMeasurementPackage());
+  lidarUKF.Init(ld0.ToMeasurementPackage());
+
+  long long previous_timestamp = 0;
+  double dt = radarUKF.CalcDt(previous_timestamp, rd1.timestamp_);
+  cout << "dt: " << dt << "\n";
+
+  radarUKF.Prediction(dt);
+  cout << "###Prediction - radarUKF:\n";
+  radarUKF.DisplayData();
+  lidarUKF.Prediction(dt);
+  cout << "###Prediction - lidarUKF:\n";
+  lidarUKF.DisplayData();  
+
+  VectorXd radarX = radarUKF.GetX();
+  VectorXd lidarX = lidarUKF.GetX();
+  for(int i=0; i<radarX.size(); i++)
+  {
+    EXPECT_NEAR(radarX (i), lidarX(i), 0.0001); 
+  }
+
+  MatrixXd radarP = radarUKF.GetP();
+  MatrixXd lidarP = lidarUKF.GetP();
+  for(int row=0; row<radarP.rows(); row++)
+  {
+    for(int col=0; col<radarP.cols(); col++)
+    { 
+      EXPECT_NEAR(radarP(row, col), lidarP(row, col), 0.0001);  
+    }
+  }   
+
+  MatrixXd radarXSigPred = radarUKF.GetXSigPred();
+  MatrixXd lidarXSigPred = lidarUKF.GetXSigPred();
+  for(int row=0; row<radarXSigPred.rows(); row++)
+  {
+    for(int col=0; col<radarXSigPred.cols(); col++)
+    { 
+      EXPECT_NEAR(radarXSigPred(row, col), radarXSigPred(row, col), 0.0001);  
+    }
+  }     
+
+  radarUKF.UpdateRadar(rd1.ToMeasurementPackage());
+  cout << "###Update - radarUKF:\n";
+  radarUKF.DisplayData();
+
+  lidarUKF.UpdateLidar(ld1.ToMeasurementPackage());
+  cout << "###Update - lidarUKF:\n";
+  lidarUKF.DisplayData();
+
+  radarX = radarUKF.GetX();
+  lidarX = lidarUKF.GetX();
+  for(int i=0; i<radarX.size(); i++)
+  {
+    EXPECT_NEAR(radarX (i), lidarX(i), 0.0001); 
+  }
+
+  radarP = radarUKF.GetP();
+  lidarP = lidarUKF.GetP();
+  for(int row=0; row<radarP.rows(); row++)
+  {
+    for(int col=0; col<radarP.cols(); col++)
+    { 
+      EXPECT_NEAR(radarP(row, col), lidarP(row, col), 0.0001);  
+    }
+  }   
+
+  radarXSigPred = radarUKF.GetXSigPred();
+  lidarXSigPred = lidarUKF.GetXSigPred();
+  for(int row=0; row<radarXSigPred.rows(); row++)
+  {
+    for(int col=0; col<radarXSigPred.cols(); col++)
+    { 
+      EXPECT_NEAR(radarXSigPred(row, col), radarXSigPred(row, col), 0.0001);  
+    }
+  }     
+
+  cout << "end\n";
+}
+*/
